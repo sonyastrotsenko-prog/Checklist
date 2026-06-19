@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Запуск нового продукту</title>
+<style>
+  :root {
+    --navy: #1a2e4a; --blue: #2563a8; --blue-light: #dbeafe; --blue-mid: #93c5fd;
+    --accent-light: #fef3c7; --green: #16a34a; --red: #dc2626;
+    --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1; --gray-400: #94a3b8; --gray-600: #475569; --gray-800: #1e293b;
+    --radius: 10px; --shadow: 0 2px 12px rgba(30,41,59,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #eef3f9; color: var(--gray-800); min-height: 100vh; }
+
+  .topbar { background: var(--navy); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.25); gap: 12px; flex-wrap: wrap; }
+  .topbar-title { color: white; font-size: 17px; font-weight: 700; }
+  .topbar-title span { color: var(--blue-mid); }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+  /* SYNC STATUS */
+  .sync-status { font-size: 12px; padding: 5px 10px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+  .sync-status.ok    { background: rgba(22,163,74,0.2); color: #86efac; }
+  .sync-status.saving { background: rgba(234,179,8,0.2); color: #fde047; }
+  .sync-status.error { background: rgba(220,38,38,0.2); color: #fca5a5; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .sync-status.saving .sync-dot { animation: pulse 0.8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* SETUP BANNER */
+  .setup-banner { background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: var(--radius); padding: 20px 24px; margin: 24px auto; max-width: 700px; }
+  .setup-banner h3 { font-size: 16px; color: #92400e; margin-bottom: 10px; }
+  .setup-banner p { font-size: 13px; color: #78350f; margin-bottom: 12px; line-height: 1.6; }
+  .setup-banner .setup-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .setup-banner input { flex: 1; min-width: 200px; padding: 8px 12px; border: 1.5px solid #fcd34d; border-radius: 7px; font-size: 13px; outline: none; }
+  .setup-banner input:focus { border-color: #f59e0b; }
+  .setup-banner a { font-size: 12px; color: var(--blue); }
+
+  .tabs-wrapper { background: white; border-bottom: 2px solid var(--gray-200); padding: 0 24px; display: flex; align-items: flex-end; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+  .tabs-wrapper::-webkit-scrollbar { display: none; }
+  .tab { padding: 11px 18px 9px; border: none; background: none; font-size: 13px; font-weight: 500; color: var(--gray-600); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; transition: all 0.15s; display: flex; align-items: center; gap: 6px; position: relative; top: 2px; border-radius: 6px 6px 0 0; }
+  .tab:hover { color: var(--blue); background: var(--blue-light); }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 700; }
+  .tab-badge { background: var(--blue-light); color: var(--blue); font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 20px; }
+  .tab.active .tab-badge { background: var(--blue); color: white; }
+  .tab-close { color: rgba(100,116,139,0.4); font-size: 15px; cursor: pointer; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.15s; }
+  .tab-close:hover { background: #fee2e2; color: var(--red) !important; }
+  .tab-add { padding: 10px 14px; color: var(--gray-400); font-size: 20px; cursor: pointer; border: none; background: none; position: relative; top: 2px; transition: color 0.15s; }
+  .tab-add:hover { color: var(--blue); }
+
+  .main { max-width: 1020px; margin: 0 auto; padding: 24px 18px 60px; }
+
+  .product-header { background: white; border-radius: var(--radius); padding: 18px 22px; margin-bottom: 20px; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .product-name-row { display: flex; align-items: center; gap: 10px; }
+  .product-name-input { font-size: 20px; font-weight: 700; color: var(--navy); border: none; outline: none; background: transparent; width: 300px; max-width: 100%; }
+  .product-name-input:focus { border-bottom: 2px solid var(--blue); }
+  .product-meta { font-size: 12px; color: var(--gray-400); margin-top: 3px; }
+  .progress-ring-wrap { position: relative; width: 56px; height: 56px; }
+  .progress-ring-wrap svg { transform: rotate(-90deg); }
+  .progress-ring-bg { fill: none; stroke: var(--gray-200); stroke-width: 5; }
+  .progress-ring-fg { fill: none; stroke: var(--green); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.4s; }
+  .progress-ring-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 12px; font-weight: 800; color: var(--green); }
+  .overall-progress { display: flex; align-items: center; gap: 10px; }
+  .progress-label { font-size: 13px; color: var(--gray-600); }
+  .progress-label strong { display: block; font-size: 14px; color: var(--gray-800); }
+
+  .section-card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 14px; overflow: hidden; }
+  .section-head { background: var(--navy); padding: 13px 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .section-head-left { display: flex; align-items: center; gap: 10px; }
+  .section-num { background: rgba(255,255,255,0.15); color: white; font-weight: 800; font-size: 14px; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .section-num.done { background: var(--green); }
+  .section-title { color: white; font-size: 14px; font-weight: 700; }
+  .section-progress-text { color: rgba(255,255,255,0.65); font-size: 12px; }
+  .section-arrow { color: rgba(255,255,255,0.55); font-size: 14px; transition: transform 0.2s; }
+  .section-card.collapsed .section-arrow { transform: rotate(-90deg); }
+  .section-card.collapsed .section-body { display: none; }
+  .section-prog-bar { height: 3px; background: var(--gray-200); }
+  .section-prog-fill { height: 100%; background: var(--green); transition: width 0.3s; }
+
+  .rules-block { padding: 18px 20px; }
+  .rules-block p { font-size: 13.5px; color: #374151; line-height: 1.7; margin-bottom: 8px; padding-left: 12px; border-left: 3px solid var(--blue-mid); }
+  .rules-block p:last-child { margin-bottom: 0; }
+
+  .two-col-table { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--gray-200); }
+  .col-block { display: flex; flex-direction: column; }
+  .col-block:first-child { border-right: 2px solid var(--gray-200); }
+  .col-head { background: var(--blue-light); padding: 10px 16px; border-bottom: 1px solid var(--gray-200); }
+  .col-role { font-size: 11px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 5px; }
+  .col-name-input { border: none; outline: none; background: white; font-size: 13px; color: var(--gray-800); font-weight: 500; width: 100%; padding: 5px 9px; border-radius: 5px; border: 1.5px dashed var(--gray-300); transition: border-color 0.15s; }
+  .col-name-input:focus { border-color: var(--blue); border-style: solid; }
+  .col-name-input::placeholder { color: var(--gray-400); font-weight: 400; }
+  .col-items { padding: 6px 0; flex: 1; }
+
+  .check-item { display: flex; align-items: flex-start; gap: 9px; padding: 8px 14px; cursor: pointer; transition: background 0.1s; border-radius: 6px; margin: 2px 5px; }
+  .check-item:hover { background: var(--gray-50); }
+  .checkbox-box { width: 19px; height: 19px; border: 2px solid var(--gray-200); border-radius: 5px; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; background: white; }
+  .check-item.checked .checkbox-box { background: var(--green); border-color: var(--green); }
+  .check-item.checked .checkbox-box::after { content: '✓'; color: white; font-size: 12px; font-weight: 800; }
+  .check-label { font-size: 13.5px; color: var(--gray-800); line-height: 1.45; transition: color 0.15s; }
+  .check-item.checked .check-label { color: var(--gray-400); text-decoration: line-through; text-decoration-color: var(--gray-300); }
+
+  .btn { padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn-primary { background: var(--blue); color: white; }
+  .btn-primary:hover { background: #1d4fa8; }
+  .btn-outline { background: white; color: var(--blue); border: 1.5px solid var(--blue-mid); }
+  .btn-outline:hover { background: var(--blue-light); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 14px; padding: 26px; width: 400px; max-width: 92vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal h3 { font-size: 17px; color: var(--navy); margin-bottom: 14px; }
+  .modal input { width: 100%; padding: 9px 13px; border: 1.5px solid var(--gray-200); border-radius: 7px; font-size: 14px; outline: none; margin-bottom: 14px; transition: border-color 0.15s; font-family: inherit; }
+  .modal input:focus { border-color: var(--blue); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal p { font-size: 13px; color: var(--gray-600); margin-bottom: 18px; line-height: 1.6; }
+  .modal-hint { font-size: 12px; color: var(--gray-400); margin-top: -10px; margin-bottom: 14px; }
+
+  .empty-state { text-align: center; padding: 70px 20px; color: var(--gray-400); }
+  .empty-state .big { font-size: 44px; margin-bottom: 14px; }
+  .empty-state p { font-size: 15px; margin-bottom: 18px; }
+
+  @media (max-width: 640px) {
+    .two-col-table { grid-template-columns: 1fr; }
+    .col-block:first-child { border-right: none; border-bottom: 2px solid var(--gray-200); }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">🚀 <span>Запуск</span> нового продукту</div>
+  <div class="topbar-right">
+    <div class="sync-status saving" id="syncStatus" onclick="showBinId()" title="Натисни, щоб побачити ID сховища" style="cursor:pointer"><div class="sync-dot"></div><span id="syncText">Підключення...</span></div>
+    <button class="btn btn-outline btn-sm" onclick="openNewProductModal()">+ Новий продукт</button>
+  </div>
+</div>
+
+<div id="setupArea"></div>
+
+<div class="tabs-wrapper" id="tabsRow">
+  <button class="tab-add" onclick="openNewProductModal()" title="Додати продукт">＋</button>
+</div>
+
+<div class="main" id="mainContent">
+  <div class="empty-state"><div class="big">⏳</div><p>Завантаження...</p></div>
+</div>
+
+<!-- NEW PRODUCT MODAL -->
+<div class="modal-overlay" id="newProductModal">
+  <div class="modal">
+    <h3>📦 Новий продукт</h3>
+    <input type="text" id="newProductName" placeholder="Назва продукту (напр. Математика 5-7 клас)" maxlength="60"
+      onkeydown="if(event.key==='Enter') confirmNewProduct()">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Скасувати</button>
+      <button class="btn btn-primary" onclick="confirmNewProduct()">Створити</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <h3>🗑️ Видалити продукт?</h3>
+    <p>Весь прогрес буде видалено для всіх. Цю дію неможливо скасувати.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Скасувати</button>
+      <button class="btn btn-primary" style="background:var(--red)" onclick="confirmDelete()">Видалити</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP MODAL -->
+<div class="modal-overlay" id="setupModal">
+  <div class="modal">
+    <h3>🔑 Налаштування хмарного сховища</h3>
+    <p>Для спільного доступу потрібен безкоштовний API-ключ від <a href="https://jsonbin.io" target="_blank">jsonbin.io</a>.<br><br>
+    1. Зайди на <strong>jsonbin.io</strong> → Sign Up (безкоштовно)<br>
+    2. Dashboard → API Keys → скопіюй Master Key</p>
+    <input type="text" id="apiKeyInput" placeholder="$2b$10$..." />
+    <p class="modal-hint">Ключ зберігається лише у твоєму браузері</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Скасувати</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">Зберегти та підключити</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── SECTIONS DATA ────────────────────────────────────────────────────────────
+const SECTIONS = [
+  {
+    id: 's1', num: 1, title: 'ІНІЦІЮВАННЯ ЗАПУСКУ', type: 'rules',
+    rules: [
+      'Запуск нового продукту може ініціюватися будь-яким співробітником компанії.',
+      'Відповідальність за запуск та реалізацію несуть керівники або СЕО компанії.',
+      'Виняток: лінійний співробітник може керувати запуском продукту лише за окремого погодження СЕО та з обовʼязковим наставництвом керівника (наставника погоджує СЕО).',
+      'Запуск процесу реалізації розпочинається з моменту визначення та погодження СЕО відповідальних осіб.',
+    ],
+  },
+  {
+    id: 's2', num: 2, title: 'АНАЛІЗ РИНКУ', type: 'checklist',
+    people: [{ key: 'resp', label: 'Відповідальний' }, { key: 'ceo', label: 'CEO' }],
+    left:  { label: 'Відповідальний', items: ['Проведено первинний аналіз попиту та конкурентів','Таблиця: мінімум 6 конкурентів, цінова політика, ЦА, канали продажів','Презентацію аналітики підготовлено з висновком та запланованими датами'] },
+    right: { label: 'CEO', items: ['Презентація аналітики погоджена СЕО','Зафіксовано дату старту','Зафіксовано планову дату дедлайну'] },
+  },
+  {
+    id: 's3', num: 3, title: 'ПІДГОТОВКА ОФЕРУ', type: 'checklist',
+    people: [{ key: 'resp', label: 'Відповідальний' }, { key: 'tech', label: 'Технічний + Фін + Юр' }],
+    left:  { label: 'Відповідальний', items: ['Визначено цільову аудиторію та формат курсу','Визначено тривалість одного заняття','Визначено варіанти абонементів (кількість занять, умови)','Сформульовано УТП і фінальний офер'] },
+    right: { label: 'Технічний + Фінансовий + Юридичний', items: ['Визначено вартість у всіх валютах (таблиця)','Підготовлено варіанти розтермінування (таблиця)','Визначено максимально можливу знижку для менеджера','Розраховано рентабельність (P&L)','Запропоновано ставку вчителя виходячи з рентабельності','Визначено ФОП для прийому оплат від учнів','Реквізити ФОП передано відділу продажів','Юридичний: створено договір оферти'] },
+  },
+  {
+    id: 's4', num: 4, title: 'ПЛАТФОРМА, САЙТ ТА CRM', type: 'checklist',
+    people: [{ key: 'resp', label: 'Відповідальний' }, { key: 'digital', label: 'Діджитал + Тех відділ' }],
+    left:  { label: 'Відповідальний', items: ['Сформовано ТЗ для змін на сайті та передано діджитал','Перевірено правильність внесеної інформації на сайт'] },
+    right: { label: 'Діджитал + Технічний відділ', items: ['Внесено опис, ціни у всіх валютах, договір оферти на сайт','На платформу внесено: предмет, ставку вчителя, варіанти абонементів'] },
+  },
+  {
+    id: 's5', num: 5, title: 'ПІДГОТОВКА ПРОГРАМИ', type: 'checklist',
+    people: [{ key: 'resp', label: 'Відповідальний' }, { key: 'teachers', label: 'Відділ вчителів' }],
+    left:  { label: 'Відповідальний', items: ['Визначено вікову категорію учнів згідно наявних програм','Розроблено презентації для вступних уроків','Презентації передано вчителям'] },
+    right: { label: 'Відділ вчителів', items: ['Вчителі ознайомлені з програмою та матеріалами','Готовність до проведення вступних уроків підтверджена'] },
+  },
+  {
+    id: 's6', num: 6, title: 'ПОШУК ВЧИТЕЛЯ ТА ОНБОРДИНГ', type: 'checklist',
+    people: [{ key: 'resp', label: 'Відповідальний' }, { key: 'recruit', label: 'Відділ рекрутингу' }],
+    left:  { label: 'Відповідальний', items: ['Передано інформацію про оплату вчителя рекрутеру','Запущено пошук кандидатів','Проведено співбесіди та відбір','Підписано договір з вчителем'] },
+    right: { label: 'Відділ рекрутингу', items: ['Кандидат пройшов базову адаптацію в компанії','Вчителя попереджено про новий продукт та можливу затримку старту','Виставлено слоти для занять'] },
+  },
+  {
+    id: 's7', num: 7, title: 'ЛІДОГЕНЕРАЦІЯ', type: 'checklist',
+    people: [{ key: 'resp', label: 'Відповідальний' }, { key: 'leads', label: 'Відділ лідогенерації' }],
+    left:  { label: 'Відповідальний', items: ['Підготовлено оголошення та рекламні матеріали','Визначено канали просування'] },
+    right: { label: 'Відділ лідогенерації', items: ['Запущено анонс / рекламу','Налаштовано запис на вступні уроки (наявність вчителя підтверджена)'] },
+  },
+  {
+    id: 's8', num: 8, title: 'ПРОДАЖІ', type: 'checklist',
+    people: [{ key: 'resp', label: 'Відповідальний' }, { key: 'sales', label: 'Відділ продажів' }],
+    left:  { label: 'Відповідальний', items: ['Офер нового продукту передано відділу продажів','Створено презентацію для менеджерів з продажу'] },
+    right: { label: 'Відділ продажів', items: ['Підтверджено ФОП і реквізити для кожної валюти оплати','Команда ознайомлена з варіантами абонементів та вартістю'] },
+  },
+  {
+    id: 's9', num: 9, title: 'СТАРТ ТА СЕРВІС', type: 'checklist',
+    people: [{ key: 'service', label: 'Відділ сервісу' }, { key: 'resp', label: 'Відповідальний' }],
+    left:  { label: 'Відділ сервісу', items: ['Отримано повідомлення про новий продукт','Отримано презентації від відділу продажів'] },
+    right: { label: 'Відповідальний (фінальний крок)', items: ['Проведено кінцеву презентацію для всіх керівників','Кожен керівник підтвердив: «моя команда проінформована»','Дату запуску узгоджено з СЕО та передано всім керівникам'] },
+  },
+];
+
+// ─── CLOUD STORAGE (JSONBin) ─────────────────────────────────────────────────
+const BIN_BASE = 'https://api.jsonbin.io/v3/b';
+let API_KEY  = localStorage.getItem('jb_api_key') || '$2a$10$OzRyLZFPpE/3HY0Q3HiiEulceTFrtgGWBFSv9fLVpt3osA8EjsPr.';
+let BIN_ID   = localStorage.getItem('jb_bin_id')  || '';
+let syncTimer = null;
+let isSaving  = false;
+
+function setSyncStatus(state, text) {
+  const el = document.getElementById('syncStatus');
+  const tx = document.getElementById('syncText');
+  el.className = 'sync-status ' + state;
+  tx.textContent = text;
+}
+function showBinId() {
+  if (!BIN_ID) { alert('Сховище ще не створено. Зачекай завершення підключення.'); return; }
+  alert('ID цього сховища даних:\n\n' + BIN_ID + '\n\nНадішли цей ID розробнику, щоб зробити його постійним для всіх копій файлу.');
+}
+
+async function cloudLoad() {
+  if (!API_KEY) { showSetupBanner(); setSyncStatus('error','Не налаштовано'); return; }
+  setSyncStatus('saving', 'Завантаження...');
+  try {
+    // Try to load existing bin first
+    if (BIN_ID) {
+      const res = await fetch(`${BIN_BASE}/${BIN_ID}/latest`, {
+        headers: { 'X-Master-Key': API_KEY, 'X-Access-Key': API_KEY }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        products = data.record.products || [];
+        hideSetupBanner();
+        setSyncStatus('ok', 'Синхронізовано');
+        renderAll();
+        setTimeout(pollCloud, 15000);
+        return;
+      }
+      // If bin not found, reset and create new
+      console.warn('Bin not found, creating new one...');
+      BIN_ID = '';
+      localStorage.removeItem('jb_bin_id');
+    }
+    // Create new bin
+    const res = await fetch(BIN_BASE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': API_KEY,
+        'X-Access-Key': API_KEY,
+        'X-Bin-Name': 'launch-checklist',
+        'X-Bin-Private': 'false'
+      },
+      body: JSON.stringify({ products: [] })
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('Create bin error:', errText);
+      throw new Error(errText);
+    }
+    const data = await res.json();
+    BIN_ID = data.metadata.id;
+    localStorage.setItem('jb_bin_id', BIN_ID);
+    products = [];
+    hideSetupBanner();
+    setSyncStatus('ok', 'Синхронізовано');
+    renderAll();
+    setTimeout(pollCloud, 15000);
+  } catch(e) {
+    console.error('cloudLoad error:', e);
+    setSyncStatus('error', 'Помилка: ' + e.message.slice(0,30));
+    showSetupBanner();
+    // Still render with empty state so app is usable
+    renderAll();
+  }
+}
+
+async function pollCloud() {
+  if (!API_KEY || !BIN_ID || isSaving) { setTimeout(pollCloud, 15000); return; }
+  try {
+    const res = await fetch(`${BIN_BASE}/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY } });
+    if (!res.ok) return;
+    const data = await res.json();
+    const remote = data.record.products || [];
+    if (JSON.stringify(remote) !== JSON.stringify(products)) {
+      products = remote;
+      renderAll();
+    }
+    setSyncStatus('ok', 'Синхронізовано');
+  } catch(e) {}
+  setTimeout(pollCloud, 15000);
+}
+
+async function cloudSave() {
+  if (!API_KEY || !BIN_ID) return;
+  isSaving = true;
+  setSyncStatus('saving', 'Збереження...');
+  try {
+    const res = await fetch(`${BIN_BASE}/${BIN_ID}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': API_KEY,
+        'X-Access-Key': API_KEY
+      },
+      body: JSON.stringify({ products })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    setSyncStatus('ok', 'Синхронізовано');
+  } catch(e) {
+    console.error('cloudSave error:', e);
+    setSyncStatus('error', 'Помилка збереження');
+  }
+  isSaving = false;
+}
+
+function debounceSave() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(cloudSave, 800);
+}
+
+function showSetupBanner() {
+  document.getElementById('setupArea').innerHTML = `
+  <div class="setup-banner" style="margin:16px auto;max-width:1020px;margin-left:auto;margin-right:auto;padding-left:18px;padding-right:18px">
+    <div style="max-width:700px;margin:0 auto">
+      <h3>⚙️ Підключи хмарне сховище для спільного доступу</h3>
+      <p>Щоб всі бачили однакові дані — потрібен безкоштовний ключ <a href="https://jsonbin.io" target="_blank">jsonbin.io</a>.<br>
+      Зайди на сайт → Sign Up → Dashboard → API Keys → скопіюй <strong>Master Key</strong> і встав нижче.</p>
+      <div class="setup-row">
+        <input type="text" id="bannerKeyInput" placeholder="Встав Master Key тут..." />
+        <button class="btn btn-primary btn-sm" onclick="saveBannerKey()">Підключити</button>
+      </div>
+    </div>
+  </div>`;
+}
+function hideSetupBanner() { document.getElementById('setupArea').innerHTML = ''; }
+
+function saveBannerKey() {
+  const k = document.getElementById('bannerKeyInput')?.value?.trim();
+  if (!k) return;
+  API_KEY = k; BIN_ID = '';
+  localStorage.setItem('jb_api_key', API_KEY);
+  localStorage.removeItem('jb_bin_id');
+  hideSetupBanner();
+  cloudLoad();
+}
+function saveApiKey() {
+  const k = document.getElementById('apiKeyInput')?.value?.trim();
+  if (!k) return;
+  API_KEY = k; BIN_ID = '';
+  localStorage.setItem('jb_api_key', API_KEY);
+  localStorage.removeItem('jb_bin_id');
+  closeModal(); cloudLoad();
+}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let products = [];
+let activeId = null;
+let pendingDeleteId = null;
+
+function totalItems() {
+  return SECTIONS.filter(s => s.type === 'checklist').reduce((a, s) => a + s.left.items.length + s.right.items.length, 0);
+}
+function checkedItems(p) { return Object.values(p.checks||{}).filter(Boolean).length; }
+function sectionChecked(p, sid) {
+  const sec = SECTIONS.find(s => s.id === sid);
+  if (!sec || sec.type !== 'checklist') return 0;
+  return [...sec.left.items.map((_,i)=>`${sid}_L${i}`), ...sec.right.items.map((_,i)=>`${sid}_R${i}`)].filter(k=>p.checks[k]).length;
+}
+function sectionTotal(sid) {
+  const sec = SECTIONS.find(s => s.id === sid);
+  return (!sec || sec.type !== 'checklist') ? 0 : sec.left.items.length + sec.right.items.length;
+}
+
+// ─── MODALS ──────────────────────────────────────────────────────────────────
+function openNewProductModal() {
+  document.getElementById('newProductModal').classList.add('open');
+  setTimeout(() => document.getElementById('newProductName').focus(), 50);
+}
+function closeModal() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+  document.getElementById('newProductName').value = '';
+}
+function confirmNewProduct() {
+  const name = document.getElementById('newProductName').value.trim();
+  if (!name) return;
+  const id = 'p' + Date.now();
+  products.push({ id, name, checks: {}, people: {}, created: new Date().toLocaleDateString('uk') });
+  closeModal(); debounceSave(); setActive(id);
+}
+function openDeleteModal(id) { pendingDeleteId = id; document.getElementById('deleteModal').classList.add('open'); }
+function confirmDelete() {
+  products = products.filter(p => p.id !== pendingDeleteId);
+  if (activeId === pendingDeleteId) activeId = products.length ? products[0].id : null;
+  pendingDeleteId = null; closeModal(); debounceSave(); renderAll();
+}
+
+// ─── INTERACTIONS ─────────────────────────────────────────────────────────────
+function setActive(id) { activeId = id; renderAll(); }
+function toggleCheck(pid, key) {
+  const p = products.find(x => x.id === pid); if (!p) return;
+  p.checks[key] = !p.checks[key];
+  debounceSave(); renderProduct(p); renderTabs();
+}
+function savePerson(pid, field, value) {
+  const p = products.find(x => x.id === pid); if (!p) return;
+  if (!p.people) p.people = {};
+  p.people[field] = value; debounceSave();
+}
+function renameProduct(id, val) {
+  const p = products.find(x => x.id === id);
+  if (p && val.trim()) { p.name = val.trim(); debounceSave(); renderTabs(); }
+}
+function toggleSection(sid) { document.getElementById('card_' + sid)?.classList.toggle('collapsed'); }
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderTabs() {
+  const row = document.getElementById('tabsRow');
+  row.innerHTML = '';
+  const total = totalItems();
+  products.forEach(p => {
+    const pct = total ? Math.round(checkedItems(p)/total*100) : 0;
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (p.id === activeId ? ' active' : '');
+    btn.innerHTML = `${esc(p.name)}<span class="tab-badge">${pct}%</span><span class="tab-close" title="Видалити">×</span>`;
+    btn.querySelector('.tab-close').onclick = e => { e.stopPropagation(); openDeleteModal(p.id); };
+    btn.onclick = () => setActive(p.id);
+    row.appendChild(btn);
+  });
+  const add = document.createElement('button');
+  add.className = 'tab-add'; add.textContent = '＋'; add.onclick = openNewProductModal;
+  row.appendChild(add);
+}
+
+function renderProduct(p) {
+  const done = checkedItems(p), total = totalItems();
+  const pct = total ? Math.round(done/total*100) : 0;
+  const circ = 2 * Math.PI * 24;
+
+  let html = `<div class="product-header">
+    <div class="product-name-row">
+      <span style="font-size:24px">📦</span>
+      <div>
+        <input class="product-name-input" value="${esc(p.name)}" maxlength="60"
+          onchange="renameProduct('${p.id}',this.value)" placeholder="Назва продукту">
+        <div class="product-meta">Створено: ${p.created} &nbsp;·&nbsp; ${done} / ${total} виконано</div>
+      </div>
+    </div>
+    <div class="overall-progress">
+      <div class="progress-ring-wrap">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle class="progress-ring-bg" cx="28" cy="28" r="24"/>
+          <circle class="progress-ring-fg" cx="28" cy="28" r="24"
+            stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${(circ-circ*pct/100).toFixed(1)}"/>
+        </svg>
+        <div class="progress-ring-text">${pct}%</div>
+      </div>
+      <div class="progress-label"><strong>${pct===100?'✅ Готово!':'Прогрес'}</strong>${done} з ${total}</div>
+    </div>
+  </div>`;
+
+  SECTIONS.forEach(sec => {
+    const sDone = sectionChecked(p, sec.id), sTotal = sectionTotal(sec.id);
+    const sPct = sTotal ? Math.round(sDone/sTotal*100) : 0;
+    const isDone = sec.type === 'checklist' && sDone === sTotal && sTotal > 0;
+
+    html += `<div class="section-card" id="card_${sec.id}">
+      <div class="section-head" onclick="toggleSection('${sec.id}')">
+        <div class="section-head-left">
+          <div class="section-num${isDone?' done':''}">${isDone?'✓':sec.num}</div>
+          <div class="section-title">${sec.title}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="section-progress-text">${sec.type==='checklist'?`${sDone}/${sTotal}`:'Правила'}</div>
+          <div class="section-arrow">▼</div>
+        </div>
+      </div>
+      <div class="section-prog-bar"><div class="section-prog-fill" style="width:${sPct}%"></div></div>
+      <div class="section-body">`;
+
+    if (sec.type === 'rules') {
+      html += `<div class="rules-block">`;
+      sec.rules.forEach(r => { html += `<p>${esc(r)}</p>`; });
+      html += `</div>`;
+    }
+
+    if (sec.type === 'checklist') {
+      const lp = sec.people[0], rp = sec.people[1] || sec.people[0];
+      const lk = `${sec.id}_${lp.key}`, rk = `${sec.id}_${rp.key}`;
+      const lv = esc((p.people||{})[lk]||''), rv = esc((p.people||{})[rk]||'');
+
+      html += `<div class="two-col-table">
+        <div class="col-block">
+          <div class="col-head">
+            <div class="col-role">${esc(sec.left.label)}</div>
+            <input class="col-name-input" value="${lv}" placeholder="Введіть ПІБ"
+              onchange="savePerson('${p.id}','${lk}',this.value)" onclick="event.stopPropagation()">
+          </div>
+          <div class="col-items">`;
+      sec.left.items.forEach((item,i) => {
+        const key=`${sec.id}_L${i}`, chk=p.checks[key]?' checked':'';
+        html+=`<label class="check-item${chk}" onclick="toggleCheck('${p.id}','${key}')"><div class="checkbox-box"></div><span class="check-label">${esc(item)}</span></label>`;
+      });
+      html += `</div></div>
+        <div class="col-block">
+          <div class="col-head">
+            <div class="col-role">${esc(sec.right.label)}</div>
+            <input class="col-name-input" value="${rv}" placeholder="Введіть ПІБ"
+              onchange="savePerson('${p.id}','${rk}',this.value)" onclick="event.stopPropagation()">
+          </div>
+          <div class="col-items">`;
+      sec.right.items.forEach((item,i) => {
+        const key=`${sec.id}_R${i}`, chk=p.checks[key]?' checked':'';
+        html+=`<label class="check-item${chk}" onclick="toggleCheck('${p.id}','${key}')"><div class="checkbox-box"></div><span class="check-label">${esc(item)}</span></label>`;
+      });
+      html += `</div></div></div>`;
+    }
+    html += `</div></div>`;
+  });
+
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+function renderAll() {
+  renderTabs();
+  if (!products.length) {
+    document.getElementById('mainContent').innerHTML = `<div class="empty-state">
+      <div class="big">📋</div>
+      <p>Ще немає жодного продукту.<br>Натисни <strong>+ Новий продукт</strong>, щоб почати.</p>
+      <button class="btn btn-primary" onclick="openNewProductModal()">+ Створити перший продукт</button>
+    </div>`;
+    return;
+  }
+  if (!activeId || !products.find(p => p.id === activeId)) activeId = products[0].id;
+  renderProduct(products.find(p => p.id === activeId));
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) closeModal(); });
+});
+cloudLoad();
+</script>
+</body>
+</html>
